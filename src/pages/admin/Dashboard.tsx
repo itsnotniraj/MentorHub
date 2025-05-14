@@ -19,7 +19,18 @@ const AdminDashboard: React.FC = () => {
     pendingLeaves: 0
   });
   const [loading, setLoading] = useState(true);
-  const [recentNotices, setRecentNotices] = useState<any[]>([]);
+  interface Notice {
+    id: number;
+    title: string;
+    content: string;
+    created_at: string;
+    profiles?: {
+      first_name: string;
+      last_name: string;
+    };
+  }
+
+  const [recentNotices, setRecentNotices] = useState<Notice[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -73,7 +84,12 @@ const AdminDashboard: React.FC = () => {
           pendingLeaves: pendingLeaves || 0
         });
         
-        setRecentNotices(notices || []);
+        setRecentNotices(
+          (notices || []).map((notice) => ({
+            ...notice,
+            id: Number(notice.id),
+          }))
+        );
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {

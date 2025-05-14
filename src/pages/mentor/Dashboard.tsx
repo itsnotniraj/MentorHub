@@ -35,15 +35,19 @@ const MentorDashboard: React.FC = () => {
         if (menteesError) throw menteesError;
         setMentees(menteesData || []);
 
-        // For demo, we'll randomly set some students as having blocklogs
+        // Fetch pending leave applications for mentees
+        let menteesWithPendingLeaves: string[] = [];
         if (menteesData && menteesData.length > 0) {
-          const randomMentees = menteesData
-            .sort(() => 0.5 - Math.random())
-            .slice(0, Math.max(1, Math.floor(menteesData.length / 3)))
-            .map(student => student.id);
-
-          setMenteesWithBlocklogs(randomMentees);
+          const { data: leavesData, error: leavesError } = await supabase
+            .from('leave_applications')
+            .select('student_id')
+            .is('approved', null)
+            .in('student_id', menteesData.map(m => m.id));
+          if (leavesError) throw leavesError;
+          // Get unique student_ids with pending leaves
+          menteesWithPendingLeaves = Array.from(new Set((leavesData || []).map(l => l.student_id)));
         }
+        setMenteesWithBlocklogs(menteesWithPendingLeaves);
 
         // Fetch upcoming mentoring sessions
         const today = new Date().toISOString();
@@ -62,7 +66,10 @@ const MentorDashboard: React.FC = () => {
           .limit(5);
 
         if (sessionsError) throw sessionsError;
-        setUpcomingSessions(sessionsData || []);
+        setUpcomingSessions((sessionsData || []).map((s: Omit<MentoringSession, 'notes'> & { notes: string | null }) => ({
+          ...s,
+          notes: s.notes === null ? undefined : s.notes,
+        })));
 
         // Fetch recent notices
         const { data: noticesData, error: noticesError } = await supabase
@@ -72,16 +79,19 @@ const MentorDashboard: React.FC = () => {
           .limit(3);
 
         if (noticesError) throw noticesError;
-        setNotices(noticesData || []);
+        setNotices((noticesData || []).map((n: Omit<Notice, 'file_path'> & { file_path: string | null }) => ({
+          ...n,
+          file_path: n.file_path === null ? undefined : n.file_path,
+        })));
 
         // Fetch pending leave applications count
-        const { count, error: leavesError } = await supabase
+        const { count, error: leavesErrorCount } = await supabase
           .from('leave_applications')
           .select('*', { count: 'exact', head: true })
           .is('approved', null)
           .in('student_id', menteesData?.map(m => m.id) || []);
 
-        if (leavesError) throw leavesError;
+        if (leavesErrorCount) throw leavesErrorCount;
         setPendingLeaves(count || 0);
 
       } catch (error) {
@@ -203,7 +213,7 @@ const MentorDashboard: React.FC = () => {
                         <div>
                           <h3 className="font-semibold">{session.title}</h3>
                           <p className="text-sm text-muted-foreground">
-                            With {session.profiles?.first_name} {session.profiles?.last_name}
+                            Student ID: {session.student_id}
                           </p>
                         </div>
                         <div className="text-sm">

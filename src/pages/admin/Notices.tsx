@@ -184,7 +184,10 @@ const AdminNotices: React.FC = () => {
         
         if (error) throw error;
         
-        setNotices(data || []);
+        setNotices((data || []).map(notice => ({
+          ...notice,
+          file_path: notice.file_path ?? undefined,
+        })));
       } catch (error) {
         console.error('Error fetching notices:', error);
         toast.error('Failed to load notices');
@@ -231,14 +234,14 @@ const AdminNotices: React.FC = () => {
             title: noticeData.title,
             content: noticeData.content,
             file_path: noticeData.file_path,
-            created_by: (await supabase.auth.getUser()).data.user?.id,
+            created_by: (await supabase.auth.getUser()).data.user?.id || 'unknown_user',
           })
           .select();
         
         if (error) throw error;
         
         if (data) {
-          setNotices([...data, ...notices]);
+          setNotices([...data.map(notice => ({ ...notice, file_path: notice.file_path ?? undefined })), ...notices]);
         }
         
         toast.success('Notice published successfully');

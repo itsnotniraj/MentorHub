@@ -165,7 +165,7 @@ const SessionModal: React.FC<SessionModalProps> = ({ isOpen, onClose, session, m
 
 const MentorSessions: React.FC = () => {
   const { currentUser } = useAuth();
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<MentoringSession[]>([]);
   const [mentees, setMentees] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -187,7 +187,16 @@ const MentorSessions: React.FC = () => {
           .eq('role', 'student');
         
         if (menteesError) throw menteesError;
-        setMentees(menteesData || []);
+        setMentees(
+          (menteesData || []).map((mentee: any) => ({
+            ...mentee,
+            avatar_url: mentee.avatar_url === null ? undefined : mentee.avatar_url,
+            phone: mentee.phone === null ? undefined : mentee.phone,
+            semester: mentee.semester === null ? undefined : mentee.semester,
+            year_of_admission: mentee.year_of_admission === null ? undefined : mentee.year_of_admission,
+            mentor_id: mentee.mentor_id === null ? undefined : mentee.mentor_id,
+          }))
+        );
         
         // Fetch all mentoring sessions
         const { data: sessionsData, error: sessionsError } = await supabase

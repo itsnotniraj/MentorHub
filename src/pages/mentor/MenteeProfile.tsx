@@ -2,82 +2,78 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
-import PerformanceChart from '../../components/PerformanceChart';
-import { UserRound, Mail, PhoneCall, Calendar, BookOpen, Clock } from 'lucide-react';
-import { Profile, MentoringSession } from '../../types';
+import Button from '../../components/ui/Button';
+import { Mail, PhoneCall, Calendar, BookOpen, Clock, AlertCircle, XCircle, CheckCircle } from 'lucide-react';
+import { Profile } from '../../types';
 import { format } from 'date-fns';
+
+interface LeaveApplication {
+  id: string;
+  student_id: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  approved: boolean | null;
+  created_at: string;
+}
+
+const fixProfile = (p: Record<string, unknown>): Profile => ({
+  ...p,
+  avatar_url: p.avatar_url === null ? undefined : (p.avatar_url as string | undefined),
+  phone: p.phone === null ? undefined : (p.phone as string | undefined),
+  mentor_id: p.mentor_id === null ? undefined : (p.mentor_id as string | undefined),
+  semester: p.semester === null ? undefined : (p.semester as number | undefined),
+  year_of_admission: p.year_of_admission === null ? undefined : (p.year_of_admission as number | undefined),
+} as Profile);
 
 const MenteeProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [mentee, setMentee] = useState<Profile | null>(null);
-  const [sessions, setSessions] = useState<MentoringSession[]>([]);
+  const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Mock data for charts
-  const performanceData = {
-    labels: ['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4'],
-    datasets: [
-      {
-        label: 'CGPA',
-        data: [8.2, 8.5, 8.1, 8.7],
-        borderColor: 'rgb(37, 99, 235)',
-        backgroundColor: 'rgba(37, 99, 235, 0.5)',
-      },
-    ],
-  };
-
-  const attendanceData = {
-    labels: ['Math', 'Physics', 'Chemistry', 'Computer Science', 'English'],
-    datasets: [
-      {
-        label: 'Attendance Percentage',
-        data: [85, 90, 75, 95, 88],
-        backgroundColor: 'rgba(124, 58, 237, 0.6)',
-      },
-    ],
-  };
+  const [leaveLoading, setLeaveLoading] = useState(false);
 
   useEffect(() => {
     const fetchMenteeData = async () => {
       if (!id) return;
-
-      try {
-        setLoading(true);
-
-        // Fetch mentee profile
-        const { data: menteeData, error: menteeError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', id)
-          .single();
-
-        if (menteeError) throw menteeError;
-        setMentee(menteeData);
-
-        // Fetch mentoring sessions
-        const { data: sessionsData, error: sessionsError } = await supabase
-          .from('mentoring_sessions')
-          .select('*')
-          .eq('student_id', id)
-          .order('date', { ascending: false });
-
-        if (sessionsError) throw sessionsError;
-        setSessions(sessionsData || []);
-
-      } catch (error) {
-        console.error('Error fetching mentee data:', error);
-      } finally {
-        setLoading(false);
-      }
+      setLoading(true);
+      const { data: menteeData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', id)
+        .single();
+      setMentee(menteeData ? fixProfile(menteeData) : null);
+      const { data: leaves } = await supabase
+        .from('leave_applications')
+        .select('*')
+        .eq('student_id', id ?? '')
+        .order('created_at', { ascending: false });
+      setLeaveApplications(leaves || []);
+      setLoading(false);
     };
-
     fetchMenteeData();
   }, [id]);
+
+  const handleApprove = async (leaveId: string, approved: boolean) => {
+    setLeaveLoading(true);
+    await supabase
+      .from('leave_applications')
+      .update({ approved })
+      .eq('id', leaveId);
+    // Refresh leave applications
+    const { data: leaves } = await supabase
+      .from('leave_applications')
+      .select('*')
+      .eq('student_id', id)
+      .order('created_at', { ascending: false });
+    setLeaveApplications(leaves || []);
+    setLeaveLoading(false);
+  };
 
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-secondary"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -85,7 +81,6 @@ const MenteeProfile: React.FC = () => {
   if (!mentee) {
     return (
       <div className="text-center py-12">
-        <UserRound className="mx-auto h-12 w-12 text-muted" />
         <h3 className="mt-4 text-lg font-medium">Mentee not found</h3>
         <p className="text-muted-foreground">
           The mentee you're looking for doesn't exist or you don't have access.
@@ -104,8 +99,6 @@ const MenteeProfile: React.FC = () => {
           Mentee Profile and Performance Overview
         </p>
       </div>
-
-      {/* Profile Information */}
       <Card>
         <CardHeader>
           <CardTitle>Personal Information</CardTitle>
@@ -114,87 +107,88 @@ const MenteeProfile: React.FC = () => {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-3">
               <div className="flex items-center text-sm">
-                <UserRound className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span>Student ID: {mentee.id.substring(0, 8)}</span>
-              </div>
-              
-              <div className="flex items-center text-sm">
                 <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
                 <span>{mentee.email}</span>
               </div>
-              
               {mentee.phone && (
                 <div className="flex items-center text-sm">
                   <PhoneCall className="h-4 w-4 mr-2 text-muted-foreground" />
                   <span>{mentee.phone}</span>
                 </div>
               )}
-            </div>
-            
-            <div className="space-y-3">
               <div className="flex items-center text-sm">
                 <BookOpen className="h-4 w-4 mr-2 text-muted-foreground" />
                 <span>Semester {mentee.semester}</span>
               </div>
-              
               <div className="flex items-center text-sm">
                 <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
                 <span>Admitted in {mentee.year_of_admission}</span>
               </div>
             </div>
+            <div className="space-y-3">
+              <div className="flex items-center text-sm">
+                <span className="font-medium">Student ID:</span>
+                <span className="ml-2">{mentee.id.substring(0, 8)}</span>
+              </div>
+              <div className="flex items-center text-sm">
+                <span className="font-medium">Role:</span>
+                <span className="ml-2">{mentee.role}</span>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
-
-      {/* Performance Charts */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <PerformanceChart 
-          title="Academic Performance" 
-          data={performanceData} 
-          type="line" 
-        />
-        <PerformanceChart 
-          title="Attendance Overview" 
-          data={attendanceData} 
-          type="bar" 
-        />
-      </div>
-
-      {/* Mentoring Sessions */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Mentoring Sessions</CardTitle>
+          <CardTitle>Leave Applications</CardTitle>
         </CardHeader>
         <CardContent>
-          {sessions.length > 0 ? (
+          {leaveApplications.length > 0 ? (
             <div className="space-y-4">
-              {sessions.map(session => (
-                <Card key={session.id}>
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold">{session.title}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(session.date), 'PPP')}
-                        </p>
-                      </div>
+              {leaveApplications.map(leave => (
+                <div key={leave.id} className="border-b pb-3 last:border-0">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="font-semibold">{leave.start_date} to {leave.end_date}</div>
+                      <div className="text-sm text-muted-foreground">Reason: {leave.reason}</div>
                     </div>
-                    {session.notes && (
-                      <p className="mt-2 text-sm text-gray-600">
-                        {session.notes}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
+                    <div>
+                      {leave.approved === true && (
+                        <span className="flex items-center text-success"><CheckCircle className="h-4 w-4 mr-1" /> Approved</span>
+                      )}
+                      {leave.approved === false && (
+                        <span className="flex items-center text-destructive"><XCircle className="h-4 w-4 mr-1" /> Rejected</span>
+                      )}
+                      {leave.approved === null && (
+                        <span className="flex items-center text-warning"><AlertCircle className="h-4 w-4 mr-1" /> Pending</span>
+                      )}
+                    </div>
+                  </div>
+                  {leave.approved === null && (
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        variant="success"
+                        size="sm"
+                        onClick={() => handleApprove(leave.id, true)}
+                        disabled={leaveLoading}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleApprove(leave.id, false)}
+                        disabled={leaveLoading}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-6">
-              <Clock className="mx-auto h-8 w-8 text-muted" />
-              <p className="mt-2 text-sm text-muted-foreground">
-                No mentoring sessions recorded yet
-              </p>
-            </div>
+            <div className="text-muted-foreground">No leave applications found.</div>
           )}
         </CardContent>
       </Card>
