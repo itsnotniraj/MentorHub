@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Clapperboard as Mortarboard, LayoutDashboard, UserRound, CalendarClock, FileSpreadsheet, Clock, Briefcase, LogOut, Menu, X } from 'lucide-react';
+import { Clapperboard as Mortarboard, LayoutDashboard, UserRound, CalendarClock, FileSpreadsheet, Clock, LogOut, Menu, X, BookOpen } from 'lucide-react';
 
 const StudentLayout: React.FC = () => {
   const { currentUser, signOut } = useAuth();
@@ -15,7 +15,7 @@ const StudentLayout: React.FC = () => {
     { path: '/student/attendance', icon: <CalendarClock size={20} />, label: 'Attendance' },
     { path: '/student/marks', icon: <FileSpreadsheet size={20} />, label: 'Academic Records' },
     { path: '/student/leave', icon: <Clock size={20} />, label: 'Leave Application' },
-    { path: '/student/internship', icon: <Briefcase size={20} />, label: 'Internship Reports' },
+    { path: '/student/activities', icon: <BookOpen size={20} />, label: 'Activities & Parent Visit' },
   ];
 
   return (

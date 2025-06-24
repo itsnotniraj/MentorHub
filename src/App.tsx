@@ -35,6 +35,7 @@ import StudentAttendance from './pages/student/Attendance';
 import StudentMarks from './pages/student/Marks';
 import StudentLeave from './pages/student/LeaveApplication';
 import StudentInternship from './pages/student/Internship';
+import ActivitiesForm from './pages/student/ActivitiesForm';
 
 function App() {
   const { currentUser, loading, checkAuth } = useAuth();
@@ -106,6 +107,7 @@ function App() {
         <Route path="/student/marks" element={<StudentMarks />} />
         <Route path="/student/leave" element={<StudentLeave />} />
         <Route path="/student/internship" element={<StudentInternship />} />
+        <Route path="/student/activities" element={<ActivitiesForm />} />
       </Route>
 
       <Route path="/" element={<Navigate to={getHomeRoute(currentUser?.role)} />} />
